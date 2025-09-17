@@ -1,0 +1,34 @@
+{
+	"schemaVersion": 1,
+	"id": "simpleveinminer",
+	"version": "${version}",
+	"name": "SimpleVeinMiner",
+	"description": "A Fabric mod that vein mining to Minecraft.",
+	"authors": [
+		"brainage04"
+	],
+	"contact": {
+		"homepage": "https://github.com/brainage04/SimpleVeinMiner",
+		"sources": "https://github.com/brainage04/SimpleVeinMiner"
+	},
+	"license": "MIT",
+	"icon": "assets/simpleveinminer/icon.png",
+	"environment": "*",
+	"entrypoints": {
+      "main": [
+        "io.github.brainage04.simpleveinminer.SimpleVeinMiner"
+      ],
+      "client": [
+        "io.github.brainage04.simpleveinminer.SimpleVeinMinerClient"
+      ]
+	},
+    "mixins": [
+        "simpleveinminer.mixins.json"
+    ],
+	"depends": {
+		"fabricloader": ">=0.17.2",
+		"minecraft": "~1.21.8",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}

@@ -1,0 +1,79 @@
+package io.github.brainage04.simpleveinminer.network.core;
+
+import io.github.brainage04.simpleveinminer.SimpleVeinMinerClient;
+import io.github.brainage04.simpleveinminer.gamerule.core.ModGameRules;
+import io.github.brainage04.simpleveinminer.network.VeinMinePayload;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.block.BlockState;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+
+import java.util.ArrayDeque;
+import java.util.HashSet;
+import java.util.Queue;
+import java.util.Set;
+
+public class ModNetworking {
+    public static final Identifier VEIN_MINE_PACKET_ID = Identifier.of(SimpleVeinMinerClient.MOD_ID, "vein_mine");
+
+    private static final int MAX_BLOCKS = 64;
+
+    private static void veinMine(ServerPlayerEntity player, BlockPos start) {
+        World world = player.getWorld();
+        BlockState targetState = world.getBlockState(start);
+
+        if (targetState.isAir()) return;
+
+        Set<BlockPos> visited = new HashSet<>();
+        Queue<BlockPos> queue = new ArrayDeque<>();
+        queue.add(start);
+
+        while (!queue.isEmpty() && visited.size() < MAX_BLOCKS) {
+            BlockPos pos = queue.poll();
+            if (!visited.add(pos)) continue;
+
+            BlockState state = world.getBlockState(pos);
+            if (!state.isOf(targetState.getBlock())) continue;
+
+            if (!pos.equals(start)) {
+                world.breakBlock(pos, !player.isInCreativeMode(), player);
+            }
+
+            // add neighbors in 3x3x3 area (horizontal/vertical/diagonal neighbours)
+            for (int x = -1; x <= 1; x++) {
+                for (int y = -1; y <= 1; y++) {
+                    for (int z = -1; z <= 1; z++) {
+                        // edge case
+                        if (x == 0 && y == 0 && z == 0) continue;
+
+                        BlockPos neighbor = pos.add(x, y, z);
+                        if (!visited.contains(neighbor)) {
+                            queue.add(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public static void initialize() {
+        PayloadTypeRegistry.playC2S().register(VeinMinePayload.ID, VeinMinePayload.CODEC);
+
+        ServerPlayNetworking.registerGlobalReceiver(VeinMinePayload.ID, (payload, context) -> {
+            MinecraftServer server = context.server();
+            boolean veinMiningEnabled = server.getGameRules().getBoolean(ModGameRules.ENABLE_VEIN_MINING);
+            if (!veinMiningEnabled) return;
+
+            ServerPlayerEntity player = server.getPlayerManager().getPlayer(payload.playerUuid());
+            if (player == null) return;
+
+            BlockPos startPos = payload.blockPos();
+
+            veinMine(player, startPos);
+        });
+    }
+}

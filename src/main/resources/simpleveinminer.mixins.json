@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "io.github.brainage04.simpleveinminer.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MixinClientPlayerInteractionManager"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
