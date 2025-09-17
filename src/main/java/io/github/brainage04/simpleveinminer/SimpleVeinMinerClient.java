@@ -1,11 +1,8 @@
 package io.github.brainage04.simpleveinminer;
 
 import io.github.brainage04.simpleveinminer.key.core.ModKeys;
-import io.github.brainage04.simpleveinminer.network.VeinMinePayload;
-import io.github.brainage04.simpleveinminer.network.core.ModNetworking;
 import net.fabricmc.api.ClientModInitializer;
 
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
