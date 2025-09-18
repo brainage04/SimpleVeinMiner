@@ -1,23 +1,23 @@
 package io.github.brainage04.simpleveinminer.network.core;
 
+import io.github.brainage04.simpleveinminer.SimpleVeinMiner;
 import io.github.brainage04.simpleveinminer.SimpleVeinMinerClient;
 import io.github.brainage04.simpleveinminer.gamerule.core.ModGameRules;
 import io.github.brainage04.simpleveinminer.network.VeinMinePayload;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.BlockState;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.world.GameRules;
 import net.minecraft.world.World;
 
-import java.util.ArrayDeque;
-import java.util.HashSet;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ModNetworking {
@@ -40,13 +40,12 @@ public class ModNetworking {
         return false;
     }
 
-    private static void veinMine(ServerPlayerEntity player, BlockPos start) {
+    private static void veinMine(ServerPlayerEntity player, BlockPos start, BlockState targetState) {
         GameRules rules = player.getWorld().getGameRules();
         int maxBlocks = rules.getInt(ModGameRules.MAX_BLOCKS);
         int maxVisitedBlocks = rules.getInt(ModGameRules.MAX_VISITED_BLOCKS);
 
         World world = player.getWorld();
-        BlockState targetState = world.getBlockState(start);
 
         if (targetState.isAir()) return;
 
@@ -54,18 +53,40 @@ public class ModNetworking {
         Queue<BlockPos> queue = new ArrayDeque<>();
         queue.add(start);
 
+        ItemEntity startEntity = getStartEntity(start, world);
+
         int blocksBroken = 1;
         while (!queue.isEmpty() && blocksBroken < maxBlocks && visited.size() < maxVisitedBlocks) {
             BlockPos pos = queue.poll();
             if (!visited.add(pos)) continue;
 
-            BlockState state = world.getBlockState(pos);
-            if (!state.isOf(targetState.getBlock())) continue;
-
             if (!pos.equals(start)) {
-                world.breakBlock(pos, !player.isInCreativeMode(), player);
+                BlockState state = world.getBlockState(pos);
+                if (!state.isOf(targetState.getBlock())) continue;
+
+                boolean dropped = world.breakBlock(pos, !player.isInCreativeMode(), player);
+
+                // add the dropped item to the stack at the starting position for convenience
+                if (dropped && startEntity != null) {
+                    Box box = new Box(pos);
+                    List<ItemEntity> possibleEntities = world.getEntitiesByClass(ItemEntity.class, box, entity -> true);
+
+                    if (possibleEntities.size() == 1) {
+                        ItemEntity entity = possibleEntities.getFirst();
+
+                        ItemStack stack = startEntity.getStack();
+                        stack.increment(entity.getStack().getCount());
+                        startEntity.setStack(stack);
+
+                        entity.discard();
+                    } else if (!possibleEntities.isEmpty()) {
+                        SimpleVeinMiner.LOGGER.error("ItemEntity list size for vein mined block is not 0 or 1 but {} - this shouldn't happen!", possibleEntities.size());
+                    }
+                }
+
                 // stop immediately if tool broke
                 if (onBlockBreak(player)) return;
+
                 blocksBroken++;
             }
 
@@ -86,6 +107,20 @@ public class ModNetworking {
         }
     }
 
+    private static ItemEntity getStartEntity(BlockPos start, World world) {
+        Box box = new Box(start).expand(1, 1, 1);
+        List<ItemEntity> possibleEntities = world.getEntitiesByClass(ItemEntity.class, box, entity -> true);
+
+        if (possibleEntities.size() == 1) {
+            return possibleEntities.getFirst();
+        } else if (!possibleEntities.isEmpty()) {
+            SimpleVeinMiner.LOGGER.error("Starting ItemEntity list size is not 0 or 1 but {} - this shouldn't happen!", possibleEntities.size());
+            // todo: spawn stack with size 0 maybe?
+        }
+
+        return null;
+    }
+
     public static void initialize() {
         PayloadTypeRegistry.playC2S().register(VeinMinePayload.ID, VeinMinePayload.CODEC);
 
@@ -97,9 +132,10 @@ public class ModNetworking {
             ServerPlayerEntity player = server.getPlayerManager().getPlayer(payload.playerUuid());
             if (player == null) return;
 
-            BlockPos startPos = payload.blockPos();
+            BlockPos pos = payload.blockPos();
+            BlockState state = player.getWorld().getBlockState(pos);
 
-            veinMine(player, startPos);
+            server.execute(() -> veinMine(player, pos, state));
         });
     }
 }
