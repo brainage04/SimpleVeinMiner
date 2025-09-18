@@ -6,4 +6,9 @@ Hold the Vein Mine Key (set to Grave by default) while mining blocks. Upon break
 
 This functionality is toggleable through the `enableVeinMining` gamerule.
 It is enabled by default.
-To disable it, use the `/gamerule` command as you would with any other boolean gamerule.
+
+The `maxBlocks` gamerule determines how many blocks will be broken at most in one vein mine,
+and the `maxVisitedBlocks` gamerule determines how many blocks will be checked for breaking at most in one vein mine
+
+To modify these gamerules, either use the `/gamerule` command
+or the `/simpleveinminer` command, which allows you to manage only the gamerules registered with this mod for ease of access purposes.
