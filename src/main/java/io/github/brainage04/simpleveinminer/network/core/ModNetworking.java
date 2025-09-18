@@ -9,7 +9,6 @@ import net.minecraft.block.BlockState;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.GameRules;
@@ -19,18 +18,26 @@ import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ModNetworking {
     public static final Identifier VEIN_MINE_PACKET_ID = Identifier.of(SimpleVeinMinerClient.MOD_ID, "vein_mine");
 
     // decrement durability and add exhaustion
-    private static void onBlockBreak(ServerPlayerEntity player) {
-        if (player.isCreative()) return;
-
-        ItemStack held = player.getMainHandStack();
-        if (held.isDamageable()) held.damage(1, player, Hand.MAIN_HAND);
+    // returns true if tool broke
+    private static boolean onBlockBreak(ServerPlayerEntity player) {
+        if (player.isCreative()) return false;
 
         player.addExhaustion(0.005F);
+
+        ItemStack held = player.getMainHandStack();
+        if (held.isDamageable())  {
+            AtomicBoolean toolBroken = new AtomicBoolean(false);
+            held.damage(1, player.getWorld(), player, p -> toolBroken.set(true));
+            return toolBroken.get();
+        }
+
+        return false;
     }
 
     private static void veinMine(ServerPlayerEntity player, BlockPos start) {
@@ -57,7 +64,8 @@ public class ModNetworking {
 
             if (!pos.equals(start)) {
                 world.breakBlock(pos, !player.isInCreativeMode(), player);
-                onBlockBreak(player);
+                // stop immediately if tool broke
+                if (onBlockBreak(player)) return;
                 blocksBroken++;
             }
 
