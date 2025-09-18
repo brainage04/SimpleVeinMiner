@@ -1,0 +1,3 @@
+accessWidener v2 named
+accessible method net/minecraft/server/command/GameRuleCommand executeQuery (Lnet/minecraft/server/command/ServerCommandSource;Lnet/minecraft/world/GameRules$Key;)I
+accessible method net/minecraft/server/command/GameRuleCommand executeSet (Lcom/mojang/brigadier/context/CommandContext;Lnet/minecraft/world/GameRules$Key;)I

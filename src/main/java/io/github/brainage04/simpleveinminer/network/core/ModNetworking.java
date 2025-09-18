@@ -6,10 +6,13 @@ import io.github.brainage04.simpleveinminer.network.VeinMinePayload;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.BlockState;
+import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.GameRules;
 import net.minecraft.world.World;
 
 import java.util.ArrayDeque;
@@ -20,9 +23,21 @@ import java.util.Set;
 public class ModNetworking {
     public static final Identifier VEIN_MINE_PACKET_ID = Identifier.of(SimpleVeinMinerClient.MOD_ID, "vein_mine");
 
-    private static final int MAX_BLOCKS = 64;
+    // decrement durability and add exhaustion
+    private static void onBlockBreak(ServerPlayerEntity player) {
+        if (player.isCreative()) return;
+
+        ItemStack held = player.getMainHandStack();
+        if (held.isDamageable()) held.damage(1, player, Hand.MAIN_HAND);
+
+        player.addExhaustion(0.005F);
+    }
 
     private static void veinMine(ServerPlayerEntity player, BlockPos start) {
+        GameRules rules = player.getWorld().getGameRules();
+        int maxBlocks = rules.getInt(ModGameRules.MAX_BLOCKS);
+        int maxVisitedBlocks = rules.getInt(ModGameRules.MAX_VISITED_BLOCKS);
+
         World world = player.getWorld();
         BlockState targetState = world.getBlockState(start);
 
@@ -32,7 +47,8 @@ public class ModNetworking {
         Queue<BlockPos> queue = new ArrayDeque<>();
         queue.add(start);
 
-        while (!queue.isEmpty() && visited.size() < MAX_BLOCKS) {
+        int blocksBroken = 1;
+        while (!queue.isEmpty() && blocksBroken < maxBlocks && visited.size() < maxVisitedBlocks) {
             BlockPos pos = queue.poll();
             if (!visited.add(pos)) continue;
 
@@ -41,6 +57,8 @@ public class ModNetworking {
 
             if (!pos.equals(start)) {
                 world.breakBlock(pos, !player.isInCreativeMode(), player);
+                onBlockBreak(player);
+                blocksBroken++;
             }
 
             // add neighbors in 3x3x3 area (horizontal/vertical/diagonal neighbours)

@@ -1,5 +1,6 @@
 package io.github.brainage04.simpleveinminer;
 
+import io.github.brainage04.simpleveinminer.command.core.ModCommands;
 import io.github.brainage04.simpleveinminer.gamerule.core.ModGameRules;
 import io.github.brainage04.simpleveinminer.key.core.ModKeys;
 import io.github.brainage04.simpleveinminer.network.core.ModNetworking;
@@ -17,6 +18,7 @@ public class SimpleVeinMiner implements ModInitializer {
 	public void onInitialize() {
 		LOGGER.info("%s initializing...".formatted(MOD_NAME));
 
+        ModCommands.initialize();
         ModGameRules.initialize();
         ModKeys.initialize();
         ModNetworking.initialize();
